@@ -23,6 +23,9 @@ import os.path
 import sys
 import binascii
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 __author__ = "Niccolo Rigacci"
 __copyright__ = "Copyright 2020 Niccolo Rigacci <niccolo@rigacci.org>"
 __license__ = "GPLv3-or-later"
@@ -102,7 +105,7 @@ pointer_fields = int(data_part_length / scp.POINTER_FIELD_LEN)
 print(u'Pointer Fields:   %d' % (pointer_fields,))
 
 if pointer_fields < scp.MIN_POINTER_FIELDS:
-    print(u'WARNING: Only %d pointer fields found, should be at least %d' % (pointer_fields, MIN_POINTER_FIELDS))
+    print(u'WARNING: Only %d pointer fields found, should be at least %d' % (pointer_fields, scp.MIN_POINTER_FIELDS))
 
 f.seek(scp.SCPECG_HEADER_LEN + scp.SECTION_HEADER_LEN)
 section_pointers = {}
@@ -156,12 +159,13 @@ else:
     f.seek(section_index + scp.SECTION_HEADER_LEN)
     tables_num = int.from_bytes(f.read(2), byteorder='little')
     print()
-    if tables_num == scp.DEFAULT_HUFFMAN_TABLE:
+    if tables_num == 1: # scp.DEFAULT_HUFFMAN_TABLE:
         print(u'INFO: Using SCP-ECG default Huffman table')
     else:
         print(u'ERROR: Using custom Huffman table #%d not supported' % (tables_num,))
         sys.exit(1)
 
+using_huffman = False
 
 # ==== Section #3 contains ECG lead definition (optional) ====
 section_index = section_pointers[3]['idx'] - 1
@@ -212,18 +216,31 @@ if min_sample_num < 1:
     print()
     print(u'WARNING: Starting sample shall start with 1')
 
+# Now read section 5
+section_index = section_pointers[5]['idx'] - 1
+section_length = section_pointers[5]['length']
+if section_length == 0:
+    print(u'ERROR: Section #5 not found')
+    sys.exit(1)
+h = scp.read_section_header(f, section_index)
+scp.print_section_header(5, h, u'Section 5')
+f.seek(section_index + scp.SECTION_HEADER_LEN)
+for i in range(0, section_length):
+    vv = int.from_bytes(f.read(1), byteorder='little')
+    print(vv)
 
 # ==== Section #6 contains the rhythm data (optional) ====
 # Contains the entire ECG rhythm data, if no reference beats have been subtracted.
-section_index = section_pointers[6]['idx'] - 1
-section_length = section_pointers[6]['length']
+section_number = 4 # 6 in 3.0
+section_index = section_pointers[section_number]['idx'] - 1
+section_length = section_pointers[section_number]['length']
 if section_length == 0:
     print(u'ERROR: Section #6 (rhythm data) not found')
     sys.exit(1)
 h = scp.read_section_header(f, section_index)
-scp.print_section_header(6, h, u'Rhythm Data')
+scp.print_section_header(section_number, h, u'Rhythm Data')
 if h['id'] != 6:
-    print(u'ERROR: Searching section #%d, found Id %d' % (6, h['id']))
+    print(u'ERROR: Searching section #%d, found Id %d' % (section_number, h['id']))
     sys.exit(1)
 if ref_beat:
     print(u'ERROR: Unsupported rhythm using reference beat compression')
@@ -251,6 +268,7 @@ for i in range(0, leads_number):
     print(u'Bytes used to store lead #%d data: %d' % (i, stored_bytes_lead[i]))
 
 ecg_data = {}
+ecg_raw = []
 for lead in range(0, leads_number):
     data_bytes = f.read(stored_bytes_lead[lead])  # data_bytes is of type <class 'bytes'>
     print()
@@ -283,6 +301,10 @@ for lead in range(0, leads_number):
 
 f.close()
 
+ecg_raw_data = list(ecg_data.values())
+plt.plot(ecg_raw_data[:600])
+plt.show()
+
 # Dump the full time serie, in CSV format.
 print()
 print(u'==== Saving ECG data in CSV format ====')
@@ -305,3 +327,5 @@ if filename_csv is not None:
         f_out.write(row.encode('utf-8') + b'\n')
     f_out.close()
     print(u'INFO: CSV data written to file "%s"' % (filename_csv,))
+
+

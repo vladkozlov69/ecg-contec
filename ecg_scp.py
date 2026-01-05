@@ -14,6 +14,8 @@ __license__ = "GPLv3-or-later"
 __email__ = "niccolo@rigacci.org"
 __version__ = "0.1.0"
 
+import sys
+
 SCPECG_HEADER_LEN = 6
 SECTION_HEADER_LEN = 16
 POINTER_FIELD_LEN = 10
@@ -249,7 +251,8 @@ LEAD = {
     61: 'III',
     62: 'aVR',
     63: 'aVL',
-    64: 'aVF'
+    64: 'aVF',
+    101: 'S'
 }
 
 ALL_SIMULTANEOUS_READ = 0b100  # Leads all simultaneously read.
@@ -399,7 +402,7 @@ def read_section_header(fp, offset):
 
 
 def print_section_header(i, h, label=''):
-    """ Print data from the the section header """
+    """ Print data from the section header """
     print()
     print(u'==== Section #%d: %s ====' % (i, label))
     print(u'Section CRC:      0x%04X' % (h['crc'],))

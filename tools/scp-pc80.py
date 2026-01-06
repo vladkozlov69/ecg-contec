@@ -3,6 +3,8 @@ import argparse
 import os.path
 import sys
 import binascii
+import matplotlib.pyplot as plt
+import numpy as np
 
 SCPECG_HEADER_LEN = 6
 SECTION_HEADER_LEN = 16
